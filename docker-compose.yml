@@ -1,0 +1,15 @@
+version: '2'
+services:
+  rservecli:
+    container_name: rservecli
+    build: .
+    depends_on:
+     - rserve
+    entrypoint: ./build.sh TestLinux
+
+  rserve:
+    container_name: rserve
+    image: stevenpollack/docker-rserve
+    ports:
+     - "6311:6311"
+  

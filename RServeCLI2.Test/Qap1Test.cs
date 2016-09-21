@@ -7,11 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
-using Xunit.Extensions;
 
 namespace RserveCLI2.Test
 {
-    
+
     public class Qap1Test
     {
 
@@ -44,7 +43,7 @@ namespace RserveCLI2.Test
                 Sexp sexpBool2ToDecoded = service.RConnection[ "bools2" ];
                 Sexp sexpBool3ToDecoded = service.RConnection[ "bools3" ];
                 Sexp sexpBool4ToDecoded = service.RConnection[ "bools4" ];
-                
+
                 // Assert
                 Assert.IsType<SexpArrayBool>( sexpBool1ToDecoded );
                 Assert.IsType<SexpArrayBool>( sexpBool2ToDecoded );
@@ -54,7 +53,7 @@ namespace RserveCLI2.Test
                 Assert.True( sexpBool1ToEncode.Values.SequenceEqual( sexpBool1ToDecoded.Values ) );
                 Assert.True( sexpBool2ToEncode.Values.SequenceEqual( sexpBool2ToDecoded.Values ) );
                 Assert.True( sexpBool3ToEncode.Values.SequenceEqual( sexpBool3ToDecoded.Values ) );
-                Assert.True( sexpBool4ToEncode.Values.SequenceEqual( sexpBool4ToDecoded.Values ) );                
+                Assert.True( sexpBool4ToEncode.Values.SequenceEqual( sexpBool4ToDecoded.Values ) );
             }
         }
 
@@ -105,7 +104,7 @@ namespace RserveCLI2.Test
                 // Act
                 service.RConnection[ "assigns1" ] = toAssign1;
                 service.RConnection[ "assigns2" ] = toAssign2;
-                
+
                 // Assert
                 for ( int x = 1 ; x <= 2 ; x++ )
                 {
@@ -185,7 +184,7 @@ namespace RserveCLI2.Test
                 // Assert
                 Assert.IsType<SexpList>( toRead1 );
                 // Assert.IsType<SexpList>( toRead2 );
-                
+
                 Assert.Equal( 3 , toRead1.Attributes.Count );
                 //Assert.Equal( 3 , toRead2.Attributes.Count );
 
@@ -218,10 +217,10 @@ namespace RserveCLI2.Test
                 //Assert.IsType<SexpArrayDouble>( toRead2.AsList[ 2 ] );
                 Assert.True( allDoubles.SequenceEqual( ( ( SexpList )toRead1 ).Value[ 2 ].AsDoubles ) );
                 // Assert.True( allDoubles.SequenceEqual( ( ( SexpList )toRead2 ).Value[ 2 ].AsDoubles ) );
-                
+
             }
         }
 
 
-    }    
+    }
 }

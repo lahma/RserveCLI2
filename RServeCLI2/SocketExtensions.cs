@@ -6,20 +6,23 @@
 namespace RserveCLI2
 {
     using System;
-    using System.Net;
     using System.Net.Sockets;
     using System.Threading.Tasks;
 
     static class SocketExtensions
     {
+#if !NETCORE
+
         public static Task<int> SendAsync(this Socket socket, byte[] buffer) =>
             SendAsync(socket, buffer, buffer.Length);
 
         public static Task<int> SendAsync(this Socket socket, byte[] buffer, int size) =>
             SendAsync(socket, buffer, 0, size);
 
+
         public static Task<int> SendAsync(this Socket socket, byte[] buffer, int offset, int size) =>
             SendAsync(socket, buffer, offset, size, SocketFlags.None);
+
 
         public static Task<int> SendAsync(this Socket socket,
             byte[] buffer, int offset, int size, SocketFlags socketFlags)
@@ -34,6 +37,8 @@ namespace RserveCLI2
             }, state: null);
             return tcs.Task;
         }
+
+
 
         public static Task<int> ReceiveAsync(this Socket socket, byte[] buffer) =>
             socket.ReceiveAsync(buffer, buffer.Length);
@@ -55,7 +60,7 @@ namespace RserveCLI2
             return tcs.Task;
         }
 
-        public static Task ConnectAsync(this Socket socket, EndPoint endPoint)
+        public static Task ConnectAsync(this Socket socket, System.Net.EndPoint endPoint)
         {
             if (socket == null) throw new ArgumentNullException(nameof(socket));
 
@@ -67,5 +72,19 @@ namespace RserveCLI2
             }, state: null);
             return tcs.Task;
         }
+
+#else
+        public static Task<int> SendAsync(this Socket socket, byte[] buffer) =>
+            socket.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), SocketFlags.None);
+
+        public static Task<int> ReceiveAsync(this Socket socket, byte[] buffer, int size) =>
+            socket.ReceiveAsync(new ArraySegment<byte>(buffer, 0, size), SocketFlags.None);
+
+        public static Task<int> ReceiveAsync(this Socket socket, byte[] buffer, int offset, int size, SocketFlags socketFlags) =>
+            socket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, size), socketFlags);
+
+        public static Task<int> ReceiveAsync(this Socket socket, byte[] buffer) =>
+            socket.ReceiveAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), SocketFlags.None);
+#endif
     }
 }

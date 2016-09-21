@@ -5,59 +5,56 @@
 //-----------------------------------------------------------------------
 
 using System;
-using System.IO;
 using System.Net;
+#if BINARY_SERIALIZATION
+using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security;
+#endif
 using Xunit;
 
 namespace RserveCLI2.Test
 {
-
     public class RserveExceptionTest
     {
-
-        #region Public Methods
-
         [Fact]
         public static void Ctor_ConstructsRserveExceptionAndSavesParameters()
         {
             // Arrange
             const string message = "something went wrong";
             const int serverErrorCode = Qap1.ErrDataOverflow;
-            var inner = new WebException( "BadFile" );
+            var inner = new WebException("BadFile");
 
             // Act
             var exception1 = new RserveException();
-            var exception2 = new RserveException( message );
-            var exception3 = new RserveException( serverErrorCode );
-            var exception4 = new RserveException( message , inner );
-            
-            // Assert
-            Assert.Equal( "Exception of type 'RserveCLI2.RserveException' was thrown." , exception1.Message );
-            Assert.Null( exception1.InnerException );
-            Assert.Null( exception1.ServerErrorCode );
-            
-            Assert.Equal( message , exception2.Message );
-            Assert.Null( exception2.InnerException );
-            Assert.Null( exception2.ServerErrorCode );
+            var exception2 = new RserveException(message);
+            var exception3 = new RserveException(serverErrorCode);
+            var exception4 = new RserveException(message, inner);
 
-            Assert.Contains( "Error received from server:" , exception3.Message );
-            Assert.Null( exception3.InnerException );
-            Assert.Equal( serverErrorCode , exception3.ServerErrorCode );
-            
-            Assert.Equal( message , exception4.Message );
-            Assert.Equal( inner , exception4.InnerException );
-            Assert.Null( exception4.ServerErrorCode );
-            
+            // Assert
+            Assert.Equal("Exception of type 'RserveCLI2.RserveException' was thrown.", exception1.Message);
+            Assert.Null(exception1.InnerException);
+            Assert.Null(exception1.ServerErrorCode);
+
+            Assert.Equal(message, exception2.Message);
+            Assert.Null(exception2.InnerException);
+            Assert.Null(exception2.ServerErrorCode);
+
+            Assert.Contains("Error received from server:", exception3.Message);
+            Assert.Null(exception3.InnerException);
+            Assert.Equal(serverErrorCode, exception3.ServerErrorCode);
+
+            Assert.Equal(message, exception4.Message);
+            Assert.Equal(inner, exception4.InnerException);
+            Assert.Null(exception4.ServerErrorCode);
         }
-        
+
         [Fact]
         public static void Ctor_CalledWithUnrecognizedServerErrorCode_DoesNotThrow()
         {
             // Arrange, Act, Assert
-            Assert.DoesNotThrow( () => new RserveException( int.MaxValue ) );            
+            new RserveException(int.MaxValue);
         }
 
         [Fact]
@@ -66,95 +63,96 @@ namespace RserveCLI2.Test
             // Arrange
             const string message = "something went wrong";
             const int serverErrorCode = Qap1.ErrDataOverflow;
-            var inner = new WebException( "BadFile" );
+            var inner = new WebException("BadFile");
 
             // Act
             var exception1 = new RserveException();
-            var exception2 = new RserveException( message );
-            var exception3 = new RserveException( serverErrorCode );
-            var exception4 = new RserveException( message , inner );
-            
+            var exception2 = new RserveException(message);
+            var exception3 = new RserveException(serverErrorCode);
+            var exception4 = new RserveException(message, inner);
+
             // Assert
-            Assert.Contains( "Exception of type 'RserveCLI2.RserveException' was thrown." , exception1.ToString() , StringComparison.CurrentCulture );
+            Assert.Contains("Exception of type 'RserveCLI2.RserveException' was thrown.", exception1.ToString(),
+                StringComparison.CurrentCulture);
 
-            Assert.Contains( message , exception2.ToString() , StringComparison.CurrentCulture );
+            Assert.Contains(message, exception2.ToString(), StringComparison.CurrentCulture);
 
-            Assert.Contains( "Error received from server:" , exception3.ToString() , StringComparison.CurrentCulture );
-            Assert.Contains( serverErrorCode.ToString() , exception3.ToString() , StringComparison.CurrentCulture );
+            Assert.Contains("Error received from server:", exception3.ToString(), StringComparison.CurrentCulture);
+            Assert.Contains(serverErrorCode.ToString(), exception3.ToString(), StringComparison.CurrentCulture);
 
-            Assert.Contains( message , exception4.ToString() , StringComparison.CurrentCulture );
-            Assert.Contains( inner.Message , exception4.ToString() , StringComparison.CurrentCulture );
-            
+            Assert.Contains(message, exception4.ToString(), StringComparison.CurrentCulture);
+            Assert.Contains(inner.Message, exception4.ToString(), StringComparison.CurrentCulture);
         }
 
+#if BINARY_SERIALIZATION
         [Fact]
         public static void Serialize_SerializesException()
         {
-
             // Arrange
             const string message = "something went wrong";
             const int serverErrorCode = Qap1.ErrDataOverflow;
-            var inner = new WebException( "BadFile" );
-            
+            var inner = new WebException("BadFile");
+
             var exception1 = new RserveException();
-            var exception2 = new RserveException( message );
-            var exception3 = new RserveException( serverErrorCode );
-            var exception4 = new RserveException( message , inner );
-            
-            // Act & Assert
-            Assert.DoesNotThrow( () => { using ( SerializeToBinaryMemoryStream( exception1 ) ) { } } );
-            Assert.DoesNotThrow( () => { using ( SerializeToBinaryMemoryStream( exception2 ) ) { } } );
-            Assert.DoesNotThrow( () => { using ( SerializeToBinaryMemoryStream( exception3 ) ) { } } );
-            Assert.DoesNotThrow( () => { using ( SerializeToBinaryMemoryStream( exception4 ) ) { } } );
-            
+            var exception2 = new RserveException(message);
+            var exception3 = new RserveException(serverErrorCode);
+            var exception4 = new RserveException(message, inner);
+
+            using (SerializeToBinaryMemoryStream(exception1))
+            {
+            }
+            using (SerializeToBinaryMemoryStream(exception2))
+            {
+            }
+            using (SerializeToBinaryMemoryStream(exception3))
+            {
+            }
+            using (SerializeToBinaryMemoryStream(exception4))
+            {
+            }
         }
 
         [Fact]
         public static void Deserialize_ReconstitutesExceptionMaintainingPropertyValues()
         {
-
             // Arrange
             const string message = "something went wrong";
             const int serverErrorCode = Qap1.ErrDataOverflow;
-            var inner = new WebException( "BadFile" );
+            var inner = new WebException("BadFile");
 
             var exception1 = new RserveException();
-            var exception2 = new RserveException( message );
-            var exception3 = new RserveException( serverErrorCode );
-            var exception4 = new RserveException( message , inner );
-            
-            MemoryStream ms1 = SerializeToBinaryMemoryStream( exception1 );
-            MemoryStream ms2 = SerializeToBinaryMemoryStream( exception2 );
-            MemoryStream ms3 = SerializeToBinaryMemoryStream( exception3 );
-            MemoryStream ms4 = SerializeToBinaryMemoryStream( exception4 );
-            
+            var exception2 = new RserveException(message);
+            var exception3 = new RserveException(serverErrorCode);
+            var exception4 = new RserveException(message, inner);
+
+            MemoryStream ms1 = SerializeToBinaryMemoryStream(exception1);
+            MemoryStream ms2 = SerializeToBinaryMemoryStream(exception2);
+            MemoryStream ms3 = SerializeToBinaryMemoryStream(exception3);
+            MemoryStream ms4 = SerializeToBinaryMemoryStream(exception4);
+
             // Act
-            var exception1Deserialized = DeserializeFromBinary<RserveException>( ms1 );
-            var exception2Deserialized = DeserializeFromBinary<RserveException>( ms2 );
-            var exception3Deserialized = DeserializeFromBinary<RserveException>( ms3 );
-            var exception4Deserialized = DeserializeFromBinary<RserveException>( ms4 );
-            
+            var exception1Deserialized = DeserializeFromBinary<RserveException>(ms1);
+            var exception2Deserialized = DeserializeFromBinary<RserveException>(ms2);
+            var exception3Deserialized = DeserializeFromBinary<RserveException>(ms3);
+            var exception4Deserialized = DeserializeFromBinary<RserveException>(ms4);
+
             // Assert
-            Assert.Equal( "Exception of type 'RserveCLI2.RserveException' was thrown." , exception1.Message );
-            Assert.Null( exception1Deserialized.InnerException );
-            Assert.Null( exception1Deserialized.ServerErrorCode );
+            Assert.Equal("Exception of type 'RserveCLI2.RserveException' was thrown.", exception1.Message);
+            Assert.Null(exception1Deserialized.InnerException);
+            Assert.Null(exception1Deserialized.ServerErrorCode);
 
-            Assert.Equal( message , exception2Deserialized.Message );
-            Assert.Null( exception2Deserialized.InnerException );
-            Assert.Null( exception2Deserialized.ServerErrorCode );
+            Assert.Equal(message, exception2Deserialized.Message);
+            Assert.Null(exception2Deserialized.InnerException);
+            Assert.Null(exception2Deserialized.ServerErrorCode);
 
-            Assert.Contains( "Error received from server:" , exception3Deserialized.Message );
-            Assert.Null( exception3Deserialized.InnerException );
-            Assert.Equal( serverErrorCode , exception3Deserialized.ServerErrorCode );
-            
-            Assert.Equal( message , exception4Deserialized.Message );
-            Assert.Equal( inner.Message , exception4Deserialized.InnerException.Message );
-            Assert.Null( exception4Deserialized.ServerErrorCode );
+            Assert.Contains("Error received from server:", exception3Deserialized.Message);
+            Assert.Null(exception3Deserialized.InnerException);
+            Assert.Equal(serverErrorCode, exception3Deserialized.ServerErrorCode);
+
+            Assert.Equal(message, exception4Deserialized.Message);
+            Assert.Equal(inner.Message, exception4Deserialized.InnerException.Message);
+            Assert.Null(exception4Deserialized.ServerErrorCode);
         }
-
-        #endregion
-
-        #region Private Methods
 
         /// <summary>
         /// Serializes an object to a MemoryStream using the BinaryFormatter
@@ -238,8 +236,6 @@ namespace RserveCLI2.Test
                 throw new ArgumentException( "Expected type of deserialized object does not match its actual type." );
             }
         }
-
-        #endregion
-        
+#endif
     }
 }
