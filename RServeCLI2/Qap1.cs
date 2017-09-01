@@ -309,11 +309,10 @@ namespace RserveCLI2
             int stored = 0;
             int retrieved = -1;
 
-            var tempBuf = new byte[ 1024 * 1014 ];
             while ( ( stored < toConsume ) && ( retrieved != 0 ) )
             {
-                retrieved = await _socket.ReceiveAsync(tempBuf).ContinueContextFree();
-                Array.Copy( tempBuf , 0 , res , stored , retrieved );
+                var receiveSize = Math.Min(DefaultReceiveSize, (int) toConsume - stored);
+                retrieved = await _socket.ReceiveAsync(res, stored, receiveSize, SocketFlags.None).ContinueContextFree();
                 stored += retrieved;
             }
 
@@ -366,11 +365,10 @@ namespace RserveCLI2
                 var dvbuf = new byte[ dlength ];
                 while ( receivedTotal < dlength )
                 {
-                    var buf = new byte[ Math.Min( dlength - receivedTotal , 1014 * 1024 ) ];
-                    var received = await _socket.ReceiveAsync(buf).ContinueContextFree();
+                    var receiveSize = Math.Min(DefaultReceiveSize, (int) dlength - receivedTotal);
+                    var received = await _socket.ReceiveAsync(dvbuf, receivedTotal, receiveSize, SocketFlags.None).ContinueContextFree();
                     if ( received > 0 )
                     {
-                        Array.Copy( buf , 0 , dvbuf , receivedTotal , received );
                         receivedTotal += received;
                     }
                     else
@@ -418,6 +416,9 @@ namespace RserveCLI2
         /// </summary>
         private readonly Socket _socket;
 
+        private const int DefaultReceiveSize = 8 * 1024;
+        private static readonly SexpNull SexpNull = new SexpNull();
+
         /// <summary>
         /// Submit a command to Rserve
         /// </summary>
@@ -428,13 +429,21 @@ namespace RserveCLI2
         {
             // Build command
             var sbuf = new List<byte>();
+            var argbuf = new List<byte>();
             foreach ( var a in data )
             {
-                var argbuf = new List<byte>();
+                argbuf.Clear();
+
                 byte dt;
                 if ( a is string )
                 {
-                    argbuf.AddRange( Encoding.UTF8.GetBytes( a as string ) );
+                    var bytes = Encoding.UTF8.GetBytes( a as string );
+                    var requiredCapacity = bytes.Length + 1 + 3;
+                    if (argbuf.Capacity < requiredCapacity)
+                    {
+                        argbuf.Capacity = requiredCapacity;
+                    }
+                    argbuf.AddRange( bytes );
                     argbuf.Add( 0 ); // string must be null terminated
 
                     // strings must be padded with zeros so length of the content is divisible by 4
@@ -470,20 +479,22 @@ namespace RserveCLI2
                 byte[] lenBytes = BitConverter.GetBytes( len );
 
                 // populate header (first four bytes)
-                IEnumerable<byte> header = lenBytes.Take( 3 );
+                int headerSize = 3;
 
                 // a large dataset is > 16MB, it requires the DtLarge flag and an extra 4 bytes in the header to esablish correct payload size
                 bool isLargeData = len > 0xfffff0;
                 if ( isLargeData )
                 {
                     dt |= DtLarge;
-                    header = lenBytes.Take( 7 );
+                    headerSize = 7;
                 }
 
                 // insert header
-                argbuf.InsertRange( 0 , header );
-                argbuf.Insert( 0 , dt );
-
+                sbuf.Add( dt );
+                for (int i = 0; i < headerSize; ++i)
+                {
+                    sbuf.Add( lenBytes[i] );
+                }
                 sbuf.AddRange( argbuf );
             }
 
@@ -492,14 +503,26 @@ namespace RserveCLI2
             // [4]  (int) length of the message (bits 0-31) - specifies the number of bytes belonging to this message (excluding the header)
             // [8]  (int) offset of the data part - specifies the offset of the data part, where 0 means directly after the header (which is normally the case)
             // [12] (int) length of the message (bits 32-63) - high bits of the length (must be 0 if the packet size is smaller than 4GB)
+            var header = new List<byte>(16);
             long mlen = sbuf.LongCount();
             byte[] mlenBytes = BitConverter.GetBytes( mlen );
-            sbuf.InsertRange( 0 , BitConverter.GetBytes( cmd ) );
-            sbuf.InsertRange( 4 , mlenBytes.Take( 4 ) );
-            sbuf.InsertRange( 8 , new byte[ 4 ] );
-            sbuf.InsertRange( 12 , mlenBytes.Skip( 4 ) );
+
+            header.AddRange( BitConverter.GetBytes( cmd ) );
+            for (int i = 0; i < 4; ++i)
+            {
+                header.Add( mlenBytes[i] );
+            }
+            for (int i = 0; i < 4; ++i)
+            {
+                header.Add( 0 );
+            }
+            for (int i = 4; i < mlenBytes.Length; ++i)
+            {
+                header.Add( mlenBytes[i] );
+            }
 
             // Execute Command
+            await _socket.SendAsync( header.ToArray() ).ContinueContextFree();
             await _socket.SendAsync( sbuf.ToArray() ).ContinueContextFree();
 
             // Read Response
@@ -525,10 +548,7 @@ namespace RserveCLI2
             }
 
             // calculate length of response payload from the header
-            var lengthBuf = new byte[ 8 ];
-            Array.Copy( hdrbuf , 4 , lengthBuf , 0 , 4 );
-            Array.Copy( hdrbuf , 12 , lengthBuf , 4 , 4 );
-            ulong length = BitConverter.ToUInt64( lengthBuf , 0 );
+            ulong length = BitConverter.ToUInt64( hdrbuf , 4 );
 
             return ( long )length;
         }
@@ -729,26 +749,27 @@ namespace RserveCLI2
                         {
                             throw new RserveException( "Attempting to decode an SexpNull, but it is followed by data when it shouldn't be." );
                         }
-                        result = new SexpNull();
+                        result = SexpNull;
                     }
                     break;
                 case XtSymName:
                     {
                         // keep all characters up to the first null
-                        var symnNamBuf = new byte[ length ];
-                        Array.Copy( data , start , symnNamBuf , 0 , length );
-                        string res = Encoding.UTF8.GetString( symnNamBuf );
-                        result = new SexpSymname( res.Split( '\x00' )[ 0 ] );
+                        string res = Encoding.UTF8.GetString( data, (int) start, (int) length );
+                        var idx = res.IndexOf('\x00');
+                        if (idx > 0)
+                        {
+                            res = res.Substring(0, idx);
+                        }
+                        result = new SexpSymname( res );
                     }
                     break;
                 case XtArrayInt:
                     {
                         var res = new int[ length / 4 ];
-                        var intBuf = new byte[ 4 ];
                         for ( int i = 0 ; i < length ; i += 4 )
                         {
-                            Array.Copy( data , start + i , intBuf , 0 , 4 );
-                            res[ i / 4 ] = BitConverter.ToInt32( intBuf , 0 );
+                            res[ i / 4 ] = BitConverter.ToInt32( data , (int) start + i );
                         }
 
                         // is date or just an integer?
@@ -768,9 +789,7 @@ namespace RserveCLI2
                         {
                             throw new RserveException( "Decoding an SexpArrayBool where data doesn't seem to contain a data length field." );
                         }
-                        var boolLengthBuf = new byte[ 4 ];
-                        Array.Copy( data , start , boolLengthBuf , 0 , 4 );
-                        var datalength = BitConverter.ToInt32( boolLengthBuf , 0 );
+                        var datalength = BitConverter.ToInt32( data , (int) start );
                         if ( datalength > length - 4 )
                         {
                             throw new RserveException( "Decoding an SexpArrayBool where transmitted data field too short for number of entries." );
@@ -802,15 +821,13 @@ namespace RserveCLI2
                 case XtArrayDouble:
                     {
                         var res = new double[ length / 8 ];
-                        var doubleBuf = new byte[ 8 ];
                         for ( int i = 0 ; i < length ; i += 8 )
                         {
-                            Array.Copy( data , start + i , doubleBuf , 0 , 8 );
-                            res[ i / 8 ] = BitConverter.ToDouble( doubleBuf , 0 );
+                            res[ i / 8 ] = BitConverter.ToDouble( data , (int) start + i );
                         }
 
                         // is date or just a double?
-                        if ( ( attrs != null ) && ( attrs.ContainsKey( "class" ) && attrs[ "class" ].AsStrings.Contains( "Date" ) ) )
+                        if ( ( attrs != null ) && ( attrs.TryGetValue( "class", out Sexp clazz ) && clazz.AsStrings.Contains( "Date" ) ) )
                         {
                             result = new SexpArrayDate( res.Select( Convert.ToInt32 ) );
                         }
@@ -842,9 +859,7 @@ namespace RserveCLI2
                                     i++;
                                 }
 
-                                var stringBuf = new byte[ j - i ];
-                                Array.Copy( data , start + i , stringBuf , 0 , j - i );
-                                res.Add( Encoding.UTF8.GetString( stringBuf ) );
+                                res.Add( Encoding.UTF8.GetString( data , (int) start + i, j - i ) );
                             }
                             i = j + 1;
                         }

@@ -55,6 +55,14 @@ namespace RserveCLI2
             Value.AddRange( theValue );
         }
 
+        /// <summary>
+        /// Initializes a new instance of SexpArrayInt with an IEnumerable of int
+        /// </summary>
+        public SexpArrayInt( int[] theValue )
+        {
+            Value = new List<int>(theValue);
+        }
+
         #endregion
 
         #region Properties

@@ -52,6 +52,17 @@ namespace RserveCLI2
             Value.AddRange( theValue );
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SexpArrayDouble"/> class.
+        /// </summary>
+        /// <param name="theValue">
+        /// The value.
+        /// </param>
+        public SexpArrayDouble( double[] theValue )
+        {
+            Value = new List<double>(theValue);
+        }
+
         #endregion
 
         #region Properties

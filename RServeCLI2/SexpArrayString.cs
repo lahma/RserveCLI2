@@ -46,6 +46,14 @@ namespace RserveCLI2
             Value.AddRange( theValue );
         }
 
+        /// <summary>
+        /// Initializes a new instance of SexpArrayString with an IEnumerable of string.
+        /// </summary>
+        public SexpArrayString( List<string> theValue )
+        {
+            Value = new List<string>(theValue);
+        }
+
         #endregion
 
         #region Properties

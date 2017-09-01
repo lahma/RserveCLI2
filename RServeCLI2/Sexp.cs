@@ -317,7 +317,12 @@ namespace RserveCLI2
         {
             get
             {
-                return this.Select<Sexp , string>( a => a.AsString ).ToArray();
+                string[] strings = new string[Count];
+                for (int i = 0; i < Count; ++i)
+                {
+                    strings[i] = this[i].AsString;
+                }
+                return strings;
             }
         }
 

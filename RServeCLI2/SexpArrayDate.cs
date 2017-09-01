@@ -68,6 +68,19 @@ namespace RserveCLI2
         {
         }
 
+
+        /// <summary>
+        /// Initializes a new instance of the SexpArrayDate with dates in R integer format.
+        /// </summary>
+        /// <remarks>
+        /// Should only be called from Qap1.DecodeSexp.  The class attribute will be added after this class is constructed.
+        /// If its constructed now, then there will be an exception inserting duplicate key into Dictionary
+        /// </remarks>
+        internal SexpArrayDate( int[] theValue )
+            : base( theValue )
+        {
+        }
+
         #endregion
 
         #region Properties
