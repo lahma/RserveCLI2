@@ -58,9 +58,13 @@ namespace RserveCLI2
         /// <summary>
         /// Initializes a new instance of SexpArrayInt with an IEnumerable of int
         /// </summary>
-        public SexpArrayInt( int[] theValue )
+        internal SexpArrayInt( int[] theValue, int length )
         {
-            Value = new List<int>(theValue);
+            Value = new List<int>(length);
+            for (int i = 0; i < length; i++)
+            {
+                Value.Add( theValue[i] );
+            }
         }
 
         #endregion
@@ -119,11 +123,16 @@ namespace RserveCLI2
         /// <summary>
         /// Gets as array of double
         /// </summary>
-        public override double[] AsDoubles
+        public override IReadOnlyList<double> AsDoubles
         {
             get
             {
-                return Value.Select( Convert.ToDouble ).ToArray();
+                var values = new List<double>(Value.Count);
+                for (int i = 0; i < Value.Count; i++)
+                {
+                    values[i] = Value[i];
+                }
+                return values;
             }
         }
 
@@ -152,11 +161,11 @@ namespace RserveCLI2
         /// <remarks>
         /// A matrix is flattenend by columns.  So the order is: Row1Col1, Row2Col1, Row3Col1, ... , Row1Col2, Row2Col2, Row3Col2, ...
         /// </remarks>
-        public override int[] AsInts
+        public override IReadOnlyList<int> AsInts
         {
             get
             {
-                return Value.ToArray();
+                return Value;
             }
         }
 

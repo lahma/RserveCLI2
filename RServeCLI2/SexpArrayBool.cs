@@ -54,6 +54,18 @@ namespace RserveCLI2
         /// <summary>
         /// Initializes a new instance of SexpArrayBool with an IEnumerable of nullable bool.
         /// </summary>
+        internal SexpArrayBool( bool?[] theValue, int length )
+        {
+            Value = new List<bool?>(length);
+            for (int i = 0; i < length; i++)
+            {
+                Value.Add( theValue[i] );
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of SexpArrayBool with an IEnumerable of nullable bool.
+        /// </summary>
         public SexpArrayBool( IEnumerable<bool?> theValue )
         {
             Value = new List<bool?>();
@@ -82,11 +94,11 @@ namespace RserveCLI2
         /// <summary>
         /// Gets as an array of nullable bool.
         /// </summary>
-        public override bool?[] AsBools
+        public override IReadOnlyList<bool?> AsBools
         {
             get
             {
-                return Value.ToArray();
+                return Value;
             }
         }
 

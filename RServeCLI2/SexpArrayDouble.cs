@@ -55,12 +55,13 @@ namespace RserveCLI2
         /// <summary>
         /// Initializes a new instance of the <see cref="SexpArrayDouble"/> class.
         /// </summary>
-        /// <param name="theValue">
-        /// The value.
-        /// </param>
-        public SexpArrayDouble( double[] theValue )
+        internal SexpArrayDouble( double[] theValue, int length )
         {
-            Value = new List<double>(theValue);
+            Value = new List<double>(length);
+            for (int i = 0; i < length; i++)
+            {
+                Value.Add( theValue[i] );
+            }
         }
 
         #endregion
@@ -121,11 +122,11 @@ namespace RserveCLI2
         /// <remarks>
         /// A matrix is flattenend by columns.  So the order is: Row1Col1, Row2Col1, Row3Col1, ... , Row1Col2, Row2Col2, Row3Col2, ...
         /// </remarks>
-        public override double[] AsDoubles
+        public override IReadOnlyList<double> AsDoubles
         {
             get
             {
-                return Value.ToArray();
+                return Value;
             }
         }
 
@@ -150,15 +151,20 @@ namespace RserveCLI2
         /// <remarks>
         /// A matrix is flattenend by columns.  So the order is: Row1Col1, Row2Col1, Row3Col1, ... , Row1Col2, Row2Col2, Row3Col2, ...
         /// </remarks>
-        public override int[] AsInts
+        public override IReadOnlyList<int> AsInts
         {
             get
             {
-                if ( Value.Select( x => ( x % 1 ) == 0 ).All( y => y ) )
+                var values = new List<int>(Value.Count);
+                for (int i = 0; i < Value.Count; i++)
                 {
-                    return Value.Select( Convert.ToInt32 ).ToArray();
+                    if (Value[i] % 1 != 0)
+                    {
+                        throw new NotSupportedException( "Can only convert length 1 double." );
+                    }
+                    values[i] = (int) Value[i];
                 }
-                throw new NotSupportedException( "Can only convert length 1 double." );
+                return values;
             }
         }
 

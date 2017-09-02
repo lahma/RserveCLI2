@@ -56,7 +56,7 @@ namespace RserveCLI2
         /// <summary>
         /// Gets a value as an array of nullable bool.
         /// </summary>
-        public virtual bool?[] AsBools
+        public virtual IReadOnlyList<bool?> AsBools
         {
             get
             {
@@ -102,7 +102,7 @@ namespace RserveCLI2
         /// <summary>
         /// Gets as array of double.
         /// </summary>
-        public virtual double[] AsDoubles
+        public virtual IReadOnlyList<double> AsDoubles
         {
             get
             {
@@ -117,7 +117,7 @@ namespace RserveCLI2
         /// <returns>The converted value</returns>
         public static explicit operator double[]( Sexp s )
         {
-            return s.AsDoubles;
+            return s.AsDoubles.ToArray();
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace RserveCLI2
         /// <value>
         /// The value as an integer.
         /// </value>
-        public virtual int[] AsInts
+        public virtual IReadOnlyList<int> AsInts
         {
             get
             {
@@ -189,7 +189,7 @@ namespace RserveCLI2
         /// <returns>The converted value</returns>
         public static explicit operator int[]( Sexp s )
         {
-            return s.AsInts;
+            return s.AsInts.ToArray();
         }
         
         /// <summary>
@@ -246,7 +246,7 @@ namespace RserveCLI2
         /// <value>
         /// The value as an integer.
         /// </value>
-        public virtual DateTime[] AsDates
+        public virtual IReadOnlyList<DateTime> AsDates
         {
             get
             {
@@ -261,7 +261,7 @@ namespace RserveCLI2
         /// <returns>The converted value</returns>
         public static explicit operator DateTime[]( Sexp s )
         {
-            return s.AsDates;
+            return s.AsDates.ToArray();
         }
 
         /// <summary>

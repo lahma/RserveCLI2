@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -334,12 +335,13 @@ namespace RserveCLI2
         {
             long toConsume = await SubmitCommandAsync(cmd, data).ContinueContextFree();
             var res = new List<object>();
+            var dhbuf = ArrayPool<byte>.Shared.Rent(9);
             while ( toConsume > 0 )
             {
+                Array.Clear(dhbuf, 0, 9);
 
                 // pull the first 4 bytes of the header
                 // first byte is the DT declaration.  Next three bytes used for length of payload.
-                var dhbuf = new byte[ 9 ];
                 int headerLength = 4;
                 if (await _socket.ReceiveAsync(dhbuf, 4).ContinueContextFree() != 4)
                 {
@@ -358,11 +360,11 @@ namespace RserveCLI2
                 }
 
                 // determine length of payload
-                var dlength = ( long )BitConverter.ToUInt64( dhbuf , 1 );
+                var dlength = ( int ) BitConverter.ToUInt64( dhbuf , 1 );
 
                 // pull the payload from the socket
                 int receivedTotal = 0;
-                var dvbuf = new byte[ dlength ];
+                var dvbuf = ArrayPool<byte>.Shared.Rent(dlength);
                 while ( receivedTotal < dlength )
                 {
                     var receiveSize = Math.Min(DefaultReceiveSize, (int) dlength - receivedTotal);
@@ -373,13 +375,13 @@ namespace RserveCLI2
                     }
                     else
                     {
-                        throw new RserveException( "When receiving command parameter from server, the payload is expected to be " + dvbuf.Length + " bytes of data, but the client received " + receivedTotal + "." );
+                        throw new RserveException( "When receiving command parameter from server, the payload is expected to be " + dlength + " bytes of data, but the client received " + receivedTotal + "." );
                     }
                 }
 
                 if ( ( typ & DtString ) == DtString )
                 {
-                    int count = dvbuf.Length;
+                    int count = dlength;
                     while ( ( count > 0 ) && ( dvbuf[ count - 1 ] != 0 ) )
                     {
                         count--;
@@ -388,7 +390,7 @@ namespace RserveCLI2
                     {
                         throw new RserveException( "Recieved a DTString of length greater than Int32 from the server, which is not supported." );
                     }
-                    res.Add( Encoding.UTF8.GetString( dvbuf , 0 , ( int )count ) );
+                    res.Add( Encoding.UTF8.GetString( dvbuf , 0 , count ) );
                 }
 
                 else if ( ( typ & DtSexp ) == DtSexp )
@@ -403,6 +405,8 @@ namespace RserveCLI2
 
                 toConsume -= ( headerLength + dlength );
             }
+
+            ArrayPool<byte>.Shared.Return(dhbuf);
 
             return res;
         }
@@ -526,8 +530,8 @@ namespace RserveCLI2
             await _socket.SendAsync( sbuf.ToArray() ).ContinueContextFree();
 
             // Read Response
-            var hdrbuf = new byte[ 16 ];
-            if ( await _socket.ReceiveAsync( hdrbuf ).ContinueContextFree() != 16 )
+            var hdrbuf = ArrayPool<byte>.Shared.Rent(16);
+            if ( await _socket.ReceiveAsync( hdrbuf, 0, 16, SocketFlags.None ).ContinueContextFree() != 16 )
             {
                 throw new RserveException( "Response from server does not contain a header." );
             }
@@ -549,6 +553,8 @@ namespace RserveCLI2
 
             // calculate length of response payload from the header
             ulong length = BitConverter.ToUInt64( hdrbuf , 4 );
+
+            ArrayPool<byte>.Shared.Return(hdrbuf);
 
             return ( long )length;
         }
@@ -717,7 +723,8 @@ namespace RserveCLI2
             byte xt = data[ start ];
 
             // calculate length of payload
-            var lengthBuf = new byte[ 8 ];
+            var lengthBuf = ArrayPool<byte>.Shared.Rent(8);
+            Array.Clear(lengthBuf, 0, 8);
             Array.Copy( data , start + 1 , lengthBuf , 0 , 3 );
             start += 4;
             if ( ( xt & XtLarge ) == XtLarge )
@@ -727,6 +734,7 @@ namespace RserveCLI2
                 xt -= XtLarge;
             }
             var length = ( int )BitConverter.ToUInt64( lengthBuf , 0 );
+            ArrayPool<byte>.Shared.Return(lengthBuf);
 
             // has attributes?  process first
             SexpTaggedList attrs = null;
@@ -755,7 +763,7 @@ namespace RserveCLI2
                 case XtSymName:
                     {
                         // keep all characters up to the first null
-                        string res = Encoding.UTF8.GetString( data, (int) start, (int) length );
+                        string res = Encoding.UTF8.GetString( data, start, length );
                         var idx = res.IndexOf('\x00');
                         if (idx > 0)
                         {
@@ -766,21 +774,23 @@ namespace RserveCLI2
                     break;
                 case XtArrayInt:
                     {
-                        var res = new int[ length / 4 ];
+                        var size = length / 4;
+                        var res = ArrayPool<int>.Shared.Rent(size);
                         for ( int i = 0 ; i < length ; i += 4 )
                         {
-                            res[ i / 4 ] = BitConverter.ToInt32( data , (int) start + i );
+                            res[ i / 4 ] = BitConverter.ToInt32( data , start + i );
                         }
 
                         // is date or just an integer?
                         if ( ( attrs != null ) && ( attrs.ContainsKey( "class" ) && attrs[ "class" ].AsStrings.Contains( "Date" ) ) )
                         {
-                            result = new SexpArrayDate( res );
+                            result = new SexpArrayDate( res, size );
                         }
                         else
                         {
-                            result = new SexpArrayInt( res );
+                            result = new SexpArrayInt( res, size );
                         }
+                        ArrayPool<int>.Shared.Return(res);
                     }
                     break;
                 case XtArrayBool:
@@ -795,7 +805,7 @@ namespace RserveCLI2
                             throw new RserveException( "Decoding an SexpArrayBool where transmitted data field too short for number of entries." );
                         }
 
-                        var res = new bool?[ datalength ];
+                        var res = ArrayPool<bool?>.Shared.Rent(datalength);
                         for ( int i = 0 ; i < datalength ; i++ )
                         {
                             // R logical is false if 0, true if 1, and NA if 2
@@ -815,12 +825,14 @@ namespace RserveCLI2
                             }
                         }
 
-                        result = new SexpArrayBool( res );
+                        result = new SexpArrayBool( res, datalength );
+                        ArrayPool<bool?>.Shared.Return(res);
                     }
                     break;
                 case XtArrayDouble:
                     {
-                        var res = new double[ length / 8 ];
+                        var size = length / 8;
+                        var res = ArrayPool<double>.Shared.Rent(size);
                         for ( int i = 0 ; i < length ; i += 8 )
                         {
                             res[ i / 8 ] = BitConverter.ToDouble( data , (int) start + i );
@@ -829,12 +841,13 @@ namespace RserveCLI2
                         // is date or just a double?
                         if ( ( attrs != null ) && ( attrs.TryGetValue( "class", out Sexp clazz ) && clazz.AsStrings.Contains( "Date" ) ) )
                         {
-                            result = new SexpArrayDate( res.Select( Convert.ToInt32 ) );
+                            result = new SexpArrayDate( res.Select( Convert.ToInt32 ).Take(size) );
                         }
                         else
                         {
-                            result = new SexpArrayDouble( res );
+                            result = new SexpArrayDouble( res, size );
                         }
+                        ArrayPool<double>.Shared.Return(res);
                     }
                     break;
                 case XtArrayString:
@@ -859,7 +872,7 @@ namespace RserveCLI2
                                     i++;
                                 }
 
-                                res.Add( Encoding.UTF8.GetString( data , (int) start + i, j - i ) );
+                                res.Add( Encoding.UTF8.GetString( data , start + i, j - i ) );
                             }
                             i = j + 1;
                         }

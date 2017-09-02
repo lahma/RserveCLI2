@@ -76,8 +76,8 @@ namespace RserveCLI2
         /// Should only be called from Qap1.DecodeSexp.  The class attribute will be added after this class is constructed.
         /// If its constructed now, then there will be an exception inserting duplicate key into Dictionary
         /// </remarks>
-        internal SexpArrayDate( int[] theValue )
-            : base( theValue )
+        internal SexpArrayDate( int[] theValue, int length )
+            : base( theValue, length )
         {
         }
 
@@ -103,11 +103,11 @@ namespace RserveCLI2
         /// <summary>
         /// Gets as array of Date.
         /// </summary>
-        public override DateTime[] AsDates
+        public override IReadOnlyList<DateTime> AsDates
         {
             get
             {
-                return Value.ToArray();
+                return Value;
             }
         }
 

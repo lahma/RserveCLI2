@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <PackageId>RserveCLI2.Optimized</PackageId>
     <TargetFrameworks>net452;netstandard1.3;netstandard2.0</TargetFrameworks>
 
     <!-- SourceLink support -->
@@ -10,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Buffers" Version="4.4.0" />
     <PackageReference Include="System.Net.NameResolution" Version="4.3.0" Condition="'$(TargetFramework)' == 'netstandard1.3'" />
     <PackageReference Include="System.Net.Requests" Version="4.3.0" Condition="'$(TargetFramework)' == 'netstandard1.3'" />
   </ItemGroup>
