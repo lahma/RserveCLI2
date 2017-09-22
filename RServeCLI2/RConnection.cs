@@ -594,12 +594,10 @@ namespace RserveCLI2
             if ( received == 0 )
                 throw new RserveException( "Rserve connection was closed by the remote host" );
 
-            var parms = new List<string>();
+            var parms = new List<string>( buf.Length / 4 );
             for ( int i = 0 ; i < buf.Length ; i += 4 )
             {
-                var b = new byte[ 4 ];
-                Array.Copy( buf , i , b , 0 , 4 );
-                parms.Add( Encoding.ASCII.GetString( b ) );
+                parms.Add( Encoding.ASCII.GetString( buf, i , 4 ) );
             }
 
             _connectionParameters = parms.ToArray();
@@ -614,14 +612,14 @@ namespace RserveCLI2
             }
 
             _protocol = new Qap1(_socket);
-            if (_connectionParameters.Contains("ARuc"))
+            if (Array.IndexOf(_connectionParameters, "ARuc") > - 1)
             {
                 string key = _connectionParameters.FirstOrDefault(x => !String.IsNullOrEmpty(x) && x[0] == 'K');
                 key = String.IsNullOrEmpty(key) ? "rs" : key.Substring(1, key.Length - 1);
 
                 await LoginAsync(user, password, "uc", key).ContinueContextFree();
             }
-            else if (_connectionParameters.Contains("ARpt"))
+            else if (Array.IndexOf(_connectionParameters, "ARpt") > - 1)
             {
                 await LoginAsync(user, password, "pt").ContinueContextFree();
             }

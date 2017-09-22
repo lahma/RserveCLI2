@@ -22,9 +22,17 @@ namespace RserveCLI2
         /// <summary>
         /// Initializes a new instance of SexpList.
         /// </summary>
-        public SexpList()
+        public SexpList() : this(0)
         {
-            Value = new List<Sexp>();
+        }
+
+
+        /// <summary>
+        /// Initializes a new instance of SexpList.
+        /// </summary>
+        public SexpList(int capacity)
+        {
+            Value = new List<Sexp>(capacity);
         }
 
         /// <summary>

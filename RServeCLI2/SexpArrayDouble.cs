@@ -37,7 +37,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayDouble( double theValue )
         {
-            Value = new List<double> { theValue };
+            Value = new List<double>(1) { theValue };
         }
 
         /// <summary>
@@ -48,8 +48,18 @@ namespace RserveCLI2
         /// </param>
         public SexpArrayDouble( IEnumerable<double> theValue )
         {
-            Value = new List<double>();
-            Value.AddRange( theValue );
+            Value = new List<double>(theValue);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SexpArrayDouble"/> class.
+        /// </summary>
+        /// <param name="theValue">
+        /// The value will be used as is and is not longer safe for caller.
+        /// </param>
+        public SexpArrayDouble( List<double> theValue )
+        {
+            Value = theValue;
         }
 
         /// <summary>
@@ -162,7 +172,7 @@ namespace RserveCLI2
                     {
                         throw new NotSupportedException( "Can only convert length 1 double." );
                     }
-                    values[i] = (int) Value[i];
+                    values.Add((int) Value[i]);
                 }
                 return values;
             }

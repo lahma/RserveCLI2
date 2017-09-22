@@ -34,7 +34,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayString( string theValue )
         {
-            Value = new List<string> { theValue };
+            Value = new List<string>(1) { theValue };
         }
 
         /// <summary>
@@ -42,8 +42,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayString( IEnumerable<string> theValue )
         {
-            Value = new List<string>();
-            Value.AddRange( theValue );
+            Value = new List<string>(theValue);
         }
 
         /// <summary>

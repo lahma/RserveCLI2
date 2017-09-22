@@ -48,7 +48,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayBool( bool? theValue )
         {
-            Value = new List<bool?> { theValue };
+            Value = new List<bool?>(1) { theValue };
         }
 
         /// <summary>
@@ -68,8 +68,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayBool( IEnumerable<bool?> theValue )
         {
-            Value = new List<bool?>();
-            Value.AddRange( theValue );
+            Value = new List<bool?>(theValue);
         }
 
         #endregion

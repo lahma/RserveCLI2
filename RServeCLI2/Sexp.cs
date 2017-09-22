@@ -349,6 +349,8 @@ namespace RserveCLI2
             }
         }
 
+        internal bool HasAttributes => _attributes != null && _attributes.Count > 0;
+
         /// <summary>
         /// Gets colnames of this matrix.
         /// </summary>
@@ -360,9 +362,9 @@ namespace RserveCLI2
         {
             get
             {
-                if ( Attributes.ContainsKey( "dimnames" ) )
+                if (_attributes != null && _attributes.ContainsKey( "dimnames" ) )
                 {
-                    string[] colNames = Attributes[ "dimnames" ].Values.ToList()[ 1 ].AsStrings;
+                    string[] colNames = _attributes[ "dimnames" ].Values.ToList()[ 1 ].AsStrings;
                     return colNames.Length == 0 ? null : colNames;
                 }
                 return null;
@@ -489,9 +491,9 @@ namespace RserveCLI2
         {
             get
             {
-                if ( Attributes.ContainsKey( "names" ) )
+                if ( _attributes != null && _attributes.ContainsKey( "names" ) )
                 {
-                    return Attributes[ "names" ].AsStrings;
+                    return _attributes[ "names" ].AsStrings;
                 }
                 return null;
             }
@@ -536,7 +538,7 @@ namespace RserveCLI2
         {
             get
             {
-                if ( Attributes.ContainsKey( "dimnames" ) )
+                if ( _attributes != null && _attributes.ContainsKey( "dimnames" ) )
                 {
                     string[] rowNames = Attributes[ "dimnames" ].Values.ToList()[ 0 ].AsStrings;
                     return rowNames.Length == 0 ? null : rowNames;

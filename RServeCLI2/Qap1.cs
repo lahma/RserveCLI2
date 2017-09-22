@@ -8,7 +8,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -433,20 +432,14 @@ namespace RserveCLI2
         {
             // Build command
             var sbuf = new List<byte>();
-            var argbuf = new List<byte>();
             foreach ( var a in data )
             {
-                argbuf.Clear();
-
+                List<byte> argbuf;
                 byte dt;
                 if ( a is string )
                 {
                     var bytes = Encoding.UTF8.GetBytes( a as string );
-                    var requiredCapacity = bytes.Length + 1 + 3;
-                    if (argbuf.Capacity < requiredCapacity)
-                    {
-                        argbuf.Capacity = requiredCapacity;
-                    }
+                    argbuf = new List<byte>(bytes.Length + 1 + 3);
                     argbuf.AddRange( bytes );
                     argbuf.Add( 0 ); // string must be null terminated
 
@@ -460,17 +453,17 @@ namespace RserveCLI2
                 }
                 else if ( a is Sexp )
                 {
-                    argbuf.AddRange( EncodeSexp( a as Sexp ) );
+                    argbuf = EncodeSexp( a as Sexp );
                     dt = DtSexp;
                 }
                 else if ( a is byte[] )
                 {
-                    argbuf.AddRange( ( byte[] )a );
+                    argbuf = new List<byte>(( byte[] ) a );
                     dt = DtByteStream;
                 }
                 else if ( a is int )
                 {
-                    argbuf.AddRange( BitConverter.GetBytes( ( int )a ) );
+                    argbuf = new List<byte>( BitConverter.GetBytes( ( int )a ) );
                     dt = DtInt;
                 }
                 else
@@ -479,7 +472,7 @@ namespace RserveCLI2
                 }
 
                 // get payload length
-                long len = argbuf.LongCount();
+                long len = argbuf.Count;
                 byte[] lenBytes = BitConverter.GetBytes( len );
 
                 // populate header (first four bytes)
@@ -508,7 +501,7 @@ namespace RserveCLI2
             // [8]  (int) offset of the data part - specifies the offset of the data part, where 0 means directly after the header (which is normally the case)
             // [12] (int) length of the message (bits 32-63) - high bits of the length (must be 0 if the packet size is smaller than 4GB)
             var header = new List<byte>(16);
-            long mlen = sbuf.LongCount();
+            long mlen = sbuf.Count;
             byte[] mlenBytes = BitConverter.GetBytes( mlen );
 
             header.AddRange( BitConverter.GetBytes( cmd ) );
@@ -564,13 +557,13 @@ namespace RserveCLI2
         /// </summary>
         /// <param name="s">The Sexp to be encoded</param>
         /// <returns>QAP4-encoded bit stream</returns>
-        private static IEnumerable<byte> EncodeSexp( Sexp s )
+        private static List<byte> EncodeSexp( Sexp s )
         {
             var t = s.GetType();
-            var res = new List<byte>();
+            List<byte> res = null;
             byte xt;
             SexpTaggedList attrs = null;
-            if ( s.Attributes.Count > 0 )
+            if (s.HasAttributes)
             {
                 attrs = new SexpTaggedList();
                 foreach ( var a in s.Attributes )
@@ -578,34 +571,28 @@ namespace RserveCLI2
                     attrs.Add( a.Key , a.Value );
                 }
 
-                res.AddRange( EncodeSexp( attrs ) );
+                res = EncodeSexp( attrs );
             }
             if ( t == typeof( SexpNull ) )
             {
+                res = res ?? new List<byte>(0);
                 xt = XtNull;
             }
             else if ( t == typeof( SexpArrayDouble ) )
             {
                 xt = XtArrayDouble;
                 var v = ( ( SexpArrayDouble )s ).Value;
+                res = res ?? new List<byte>( v.Count * 8);
                 foreach ( var t1 in v )
                 {
                     res.AddRange( BitConverter.GetBytes( t1 ) );
                 }
             }
-            else if ( t == typeof( SexpArrayInt ) )
+            else if ( t == typeof( SexpArrayInt ) || t == typeof( SexpArrayDate ) )
             {
                 xt = XtArrayInt;
                 var v = ( ( SexpArrayInt )s ).Value;
-                foreach ( var t1 in v )
-                {
-                    res.AddRange( BitConverter.GetBytes( t1 ) );
-                }
-            }
-            else if ( t == typeof( SexpArrayDate ) )
-            {
-                xt = XtArrayInt;
-                var v = ( ( SexpArrayInt )s ).Value;
+                res = res ?? new List<byte>( v.Count * 4 );
                 foreach ( var t1 in v )
                 {
                     res.AddRange( BitConverter.GetBytes( t1 ) );
@@ -615,10 +602,15 @@ namespace RserveCLI2
             {
                 xt = XtArrayBool;
                 var v = ( SexpArrayBool )s;
+
+                res = res ?? new List<byte>( 4 + v.Count + 3 );
                 res.AddRange( BitConverter.GetBytes( v.Count ) );
 
                 // R logical is false if 0, true if 1, and NA if 2
-                res.AddRange( v.Cast<SexpArrayBool>().Select( x => x.AsByte ) );
+                foreach (var value in v)
+                {
+                    res.Add(((SexpArrayBool) value).AsByte);
+                }
 
                 // protocol requires us to pad with null
                 while ( res.Count % 4 != 0 )
@@ -630,6 +622,7 @@ namespace RserveCLI2
             {
                 xt = XtListTag;
                 var v = ( SexpTaggedList )s;
+                res = res ?? new List<byte>();
                 foreach ( var a in v.AsSexpDictionary )
                 {
                     res.AddRange( EncodeSexp( a.Value ) );
@@ -640,6 +633,7 @@ namespace RserveCLI2
             {
                 xt = XtVector;
                 var v = ( ( SexpList )s ).Value;
+                res = res ?? new List<byte>();
                 foreach ( var a in v )
                 {
                     res.AddRange( EncodeSexp( a ) );
@@ -649,6 +643,7 @@ namespace RserveCLI2
             {
                 xt = XtArrayString;
                 var v = ( ( SexpArrayString )s ).Value;
+                res = res ?? new List<byte>();
                 foreach ( var a in v )
                 {
                     // Rserve represents NA strings using 0xff (255).
@@ -675,6 +670,7 @@ namespace RserveCLI2
             {
                 xt = XtSymName;
                 var v = ( ( SexpSymname )s ).Value;
+                res = res ?? new List<byte>(Encoding.UTF8.GetByteCount(v) + 1);
                 var b = Encoding.UTF8.GetBytes( v );
                 res.AddRange( b );
                 res.Add( 0 );
@@ -690,25 +686,29 @@ namespace RserveCLI2
             }
 
             // get payload length
-            long len = res.LongCount();
+            long len = res.Count;
             byte[] lenBytes = BitConverter.GetBytes( len );
 
             // populate header (first four bytes)
-            IEnumerable<byte> header = lenBytes.Take( 3 );
+            int headerLength = 3;
 
             // a large dataset is > 16MB, it requires the XtLarge flag and an extra 4 bytes in the header to esablish correct payload size
             bool isLargeData = len > 0xfffff0;
             if ( isLargeData )
             {
                 xt |= XtLarge;
-                header = lenBytes.Take( 7 );
+                headerLength = 7;
             }
 
+            var result = new List<byte>(res.Count + headerLength + 1);
             // insert header
-            res.InsertRange( 0 , header );
-            res.Insert( 0 , xt );
-
-            return res;
+            result.Add( xt );
+            for (var i = 0; i < headerLength; i++)
+            {
+                result.Add(lenBytes[i]);
+            }
+            result.AddRange(res);
+            return result;
         }
 
         /// <summary>
@@ -782,7 +782,9 @@ namespace RserveCLI2
                         }
 
                         // is date or just an integer?
-                        if ( ( attrs != null ) && ( attrs.ContainsKey( "class" ) && attrs[ "class" ].AsStrings.Contains( "Date" ) ) )
+                        if ( attrs != null
+                             && attrs.ContainsKey( "class" )
+                             && Array.IndexOf(attrs[ "class" ].AsStrings, "Date" ) > -1)
                         {
                             result = new SexpArrayDate( res, size );
                         }
@@ -839,9 +841,16 @@ namespace RserveCLI2
                         }
 
                         // is date or just a double?
-                        if ( ( attrs != null ) && ( attrs.TryGetValue( "class", out Sexp clazz ) && clazz.AsStrings.Contains( "Date" ) ) )
+                        if ( attrs != null
+                             && attrs.TryGetValue( "class", out Sexp clazz )
+                             && Array.IndexOf(clazz.AsStrings, "Date") > -1)
                         {
-                            result = new SexpArrayDate( res.Select( Convert.ToInt32 ).Take(size) );
+                            var ints = new List<int>(size);
+                            for (int i = 0; i < size; ++i)
+                            {
+                                ints.Add(Convert.ToInt32(res[i]));
+                            }
+                            result = new SexpArrayDate( ints );
                         }
                         else
                         {

@@ -263,7 +263,15 @@ namespace RserveCLI2
         /// </returns>
         public override int IndexOf( Sexp item )
         {
-            return Value.FindIndex( x => ( x.Value == item ) );
+            var count = Value.Count;
+            for ( int i = 0; i < count; ++i)
+            {
+                if (Value[i].Value == item)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         /// <summary>
@@ -356,7 +364,15 @@ namespace RserveCLI2
 
         private int IndexOfKey(string key)
         {
-            return Value.FindIndex( e => e.Key == key );
+            var count = Value.Count;
+            for ( int i = 0; i < count; ++i)
+            {
+                if (Value[i].Key == key)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         #endregion

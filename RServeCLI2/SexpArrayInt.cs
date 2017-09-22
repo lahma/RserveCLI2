@@ -43,7 +43,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayInt( int theValue )
         {
-            Value = new List<int> { theValue };
+            Value = new List<int>(1) { theValue };
         }
 
         /// <summary>
@@ -51,8 +51,7 @@ namespace RserveCLI2
         /// </summary>
         public SexpArrayInt( IEnumerable<int> theValue )
         {
-            Value = new List<int>();
-            Value.AddRange( theValue );
+            Value = new List<int>(theValue);
         }
 
         /// <summary>
@@ -130,7 +129,7 @@ namespace RserveCLI2
                 var values = new List<double>(Value.Count);
                 for (int i = 0; i < Value.Count; i++)
                 {
-                    values[i] = Value[i];
+                    values.Add(Value[i]);
                 }
                 return values;
             }
