@@ -566,10 +566,8 @@ namespace RserveCLI2
         /// </summary>
         public void Dispose()
         {
-            if ( _socket != null )
-            {
-                ( ( IDisposable )_socket ).Dispose();
-            }
+            _socket?.Shutdown(SocketShutdown.Both);
+            _socket?.Dispose();
         }
 
         #endregion
